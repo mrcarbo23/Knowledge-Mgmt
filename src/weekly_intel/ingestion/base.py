@@ -13,6 +13,7 @@ class IngestResult:
     source_id: int
     items_found: int = 0
     items_new: int = 0
+    items_updated: int = 0
     items_skipped: int = 0
     items_failed: int = 0
     errors: list[str] = field(default_factory=list)
@@ -36,15 +37,25 @@ class BaseIngestor(ABC):
 
     source_type: str = "unknown"
 
-    def __init__(self, source_id: int, config: dict):
+    def __init__(
+        self,
+        source_id: int,
+        config: dict,
+        since_date: Optional[datetime] = None,
+        force: bool = False,
+    ):
         """Initialize the ingestor.
 
         Args:
             source_id: Database ID of the source
             config: Source-specific configuration dict
+            since_date: Only ingest content published on or after this date
+            force: If True, re-ingest items that already exist in the database
         """
         self.source_id = source_id
         self.config = config
+        self.since_date = since_date
+        self.force = force
 
     @abstractmethod
     def ingest(self) -> IngestResult:

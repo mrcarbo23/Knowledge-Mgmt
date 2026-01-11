@@ -28,8 +28,8 @@ class GmailIngestor(BaseIngestor):
 
     source_type = "gmail"
 
-    def __init__(self, source_id: int, config: dict):
-        super().__init__(source_id, config)
+    def __init__(self, source_id: int, config: dict, since_date=None, force: bool = False):
+        super().__init__(source_id, config, since_date=since_date, force=force)
         self._service = None
 
     def validate_config(self) -> list[str]:
@@ -107,9 +107,15 @@ class GmailIngestor(BaseIngestor):
                 sender_query = f"({sender_query})"
             parts.append(sender_query)
 
-        # Only get unread or recent (last 7 days by default)
-        days = self.config.get("days_back", 7)
-        parts.append(f"newer_than:{days}d")
+        # Filter by since_date if provided, otherwise use days_back
+        if self.since_date:
+            # Gmail uses YYYY/MM/DD format for after:
+            date_str = self.since_date.strftime("%Y/%m/%d")
+            parts.append(f"after:{date_str}")
+        else:
+            # Only get recent (last 7 days by default)
+            days = self.config.get("days_back", 7)
+            parts.append(f"newer_than:{days}d")
 
         return " ".join(parts)
 
@@ -267,7 +273,17 @@ class GmailIngestor(BaseIngestor):
                     )
 
                     if existing:
-                        result.items_skipped += 1
+                        if self.force:
+                            # Update existing item
+                            existing.title = item.title
+                            existing.author = item.author
+                            existing.content_text = item.content_text
+                            existing.content_html = item.content_html
+                            existing.url = item.url
+                            existing.published_at = item.published_at
+                            result.items_updated += 1
+                        else:
+                            result.items_skipped += 1
                         continue
 
                     content_item = ContentItem(
@@ -289,7 +305,7 @@ class GmailIngestor(BaseIngestor):
                     result.errors.append(f"Failed to store {item.title}: {e}")
 
         logger.info(
-            f"Gmail ingestion complete: {result.items_new} new, "
+            f"Gmail ingestion complete: {result.items_new} new, {result.items_updated} updated, "
             f"{result.items_skipped} skipped, {result.items_failed} failed"
         )
         return result

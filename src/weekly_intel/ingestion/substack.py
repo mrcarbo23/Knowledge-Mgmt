@@ -2,10 +2,13 @@
 
 import hashlib
 import logging
+import ssl
+import urllib.request
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from typing import Optional
 
+import certifi
 import feedparser
 from bs4 import BeautifulSoup
 
@@ -32,7 +35,10 @@ class SubstackIngestor(BaseIngestor):
         url = self.config["url"]
         logger.info(f"Fetching Substack feed: {url}")
 
-        feed = feedparser.parse(url)
+        # Create SSL context with certifi certificates
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        handlers = [urllib.request.HTTPSHandler(context=ssl_context)]
+        feed = feedparser.parse(url, handlers=handlers)
 
         if feed.bozo and feed.bozo_exception:
             logger.warning(f"Feed parsing warning: {feed.bozo_exception}")
@@ -125,6 +131,22 @@ class SubstackIngestor(BaseIngestor):
 
         return text
 
+    def _is_after_since_date(self, published_at: Optional[datetime]) -> bool:
+        """Check if published_at is on or after since_date."""
+        if not self.since_date:
+            return True
+        if not published_at:
+            # If no publish date, include by default (can't filter)
+            return True
+        # Handle timezone-aware vs naive comparison
+        since = self.since_date
+        pub = published_at
+        if pub.tzinfo is not None and since.tzinfo is None:
+            pub = pub.replace(tzinfo=None)
+        elif pub.tzinfo is None and since.tzinfo is not None:
+            since = since.replace(tzinfo=None)
+        return pub >= since
+
     def ingest(self) -> IngestResult:
         """Ingest content from the Substack feed."""
         result = IngestResult(source_id=self.source_id)
@@ -143,6 +165,11 @@ class SubstackIngestor(BaseIngestor):
             result.errors.append(f"Failed to fetch feed: {e}")
             return result
 
+        # Filter by since_date if provided
+        if self.since_date:
+            items = [item for item in items if self._is_after_since_date(item.published_at)]
+            logger.info(f"Filtered to {len(items)} items after {self.since_date.date()}")
+
         # Store items in database
         with get_session() as session:
             for item in items:
@@ -155,7 +182,17 @@ class SubstackIngestor(BaseIngestor):
                     )
 
                     if existing:
-                        result.items_skipped += 1
+                        if self.force:
+                            # Update existing item
+                            existing.title = item.title
+                            existing.author = item.author
+                            existing.content_text = item.content_text
+                            existing.content_html = item.content_html
+                            existing.url = item.url
+                            existing.published_at = item.published_at
+                            result.items_updated += 1
+                        else:
+                            result.items_skipped += 1
                         continue
 
                     # Create new content item
@@ -178,7 +215,7 @@ class SubstackIngestor(BaseIngestor):
                     result.errors.append(f"Failed to store {item.title}: {e}")
 
         logger.info(
-            f"Ingestion complete: {result.items_new} new, "
+            f"Ingestion complete: {result.items_new} new, {result.items_updated} updated, "
             f"{result.items_skipped} skipped, {result.items_failed} failed"
         )
         return result

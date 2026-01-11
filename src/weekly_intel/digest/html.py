@@ -1,8 +1,12 @@
 """HTML email digest renderer."""
 
-import html
+from __future__ import annotations
 
-from weekly_intel.digest.generator import DigestContent
+import html
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from weekly_intel.digest.generator import DigestContent
 
 
 def escape(text: str) -> str:

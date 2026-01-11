@@ -237,7 +237,13 @@ def source_toggle(source_id: int):
 # Ingestion command
 @cli.command()
 @click.option("--source-id", "-s", type=int, help="Ingest from specific source only")
-def ingest(source_id: Optional[int]):
+@click.option(
+    "--since",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="Only ingest content published on or after this date (YYYY-MM-DD)",
+)
+@click.option("--force", is_flag=True, help="Re-ingest items that already exist in the database")
+def ingest(source_id: Optional[int], since: Optional[datetime], force: bool):
     """Ingest content from configured sources."""
     from weekly_intel.database import Source, get_session
     from weekly_intel.ingestion import get_ingestor
@@ -253,9 +259,15 @@ def ingest(source_id: Optional[int]):
             click.echo("No active sources found")
             return
 
-        click.echo(f"Ingesting from {len(sources)} source(s)...")
+        if since:
+            click.echo(f"Ingesting from {len(sources)} source(s) (since {since.date()})...")
+        else:
+            click.echo(f"Ingesting from {len(sources)} source(s)...")
+        if force:
+            click.echo("Force mode: will re-ingest existing items")
 
         total_new = 0
+        total_updated = 0
         total_skipped = 0
         total_failed = 0
 
@@ -264,13 +276,14 @@ def ingest(source_id: Optional[int]):
 
             try:
                 ingestor_cls = get_ingestor(src.source_type)
-                ingestor = ingestor_cls(src.id, src.config)
+                ingestor = ingestor_cls(src.id, src.config, since_date=since, force=force)
 
                 result = ingestor.ingest()
 
                 click.echo(
                     f"  Found: {result.items_found}, "
                     f"New: {result.items_new}, "
+                    f"Updated: {result.items_updated}, "
                     f"Skipped: {result.items_skipped}, "
                     f"Failed: {result.items_failed}"
                 )
@@ -280,6 +293,7 @@ def ingest(source_id: Optional[int]):
                         click.echo(f"  Error: {error}", err=True)
 
                 total_new += result.items_new
+                total_updated += result.items_updated
                 total_skipped += result.items_skipped
                 total_failed += result.items_failed
 
@@ -287,7 +301,7 @@ def ingest(source_id: Optional[int]):
                 click.echo(f"  Failed: {e}", err=True)
                 total_failed += 1
 
-        click.echo(f"\nTotal: {total_new} new, {total_skipped} skipped, {total_failed} failed")
+        click.echo(f"\nTotal: {total_new} new, {total_updated} updated, {total_skipped} skipped, {total_failed} failed")
 
 
 # Processing command

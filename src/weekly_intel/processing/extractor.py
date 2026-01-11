@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -107,9 +108,13 @@ class ContentExtractor:
 
     def __init__(self):
         config = get_config()
-        api_key = config.api_keys.anthropic
+        api_key = config.api_keys.anthropic or os.environ.get("ANTHROPIC_API_KEY")
+
         if not api_key:
-            raise ValueError("Anthropic API key not configured")
+            raise ValueError(
+                "Anthropic API key not configured. "
+                "Set ANTHROPIC_API_KEY environment variable or api_keys.anthropic in config."
+            )
 
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = config.processing.model

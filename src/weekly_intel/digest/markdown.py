@@ -1,6 +1,11 @@
 """Markdown digest renderer."""
 
-from weekly_intel.digest.generator import DigestContent
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from weekly_intel.digest.generator import DigestContent
 
 
 def render_markdown(content: DigestContent) -> str:

@@ -9,10 +9,11 @@ database:
 # API Keys
 api_keys:
   # Anthropic API key for Claude (required for processing)
-  anthropic: "sk-ant-..."
+  # If not set here, will use ANTHROPIC_API_KEY environment variable
+  anthropic: ""
 
   # Resend API key for email delivery (optional)
-  resend: "re_..."
+  resend: ""
 
 # Email delivery configuration
 email:

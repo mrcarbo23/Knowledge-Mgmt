@@ -169,7 +169,9 @@ class YouTubeIngestor(BaseIngestor):
     def _fetch_transcript(self, video_id: str) -> Optional[str]:
         """Fetch transcript for a video."""
         try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            # youtube_transcript_api v1.x uses instance-based API
+            ytt_api = YouTubeTranscriptApi()
+            transcript_list = ytt_api.list(video_id)
 
             # Prefer manual transcripts, fallback to auto-generated
             transcript = None
@@ -187,7 +189,7 @@ class YouTubeIngestor(BaseIngestor):
             if transcript:
                 transcript_data = transcript.fetch()
                 # Combine all text segments
-                text = " ".join(segment["text"] for segment in transcript_data)
+                text = " ".join(segment.text for segment in transcript_data)
                 return text
 
         except TranscriptsDisabled:
@@ -241,6 +243,22 @@ class YouTubeIngestor(BaseIngestor):
         logger.info(f"Successfully fetched {len(items)} video transcripts")
         return items
 
+    def _is_after_since_date(self, published_at: Optional[datetime]) -> bool:
+        """Check if published_at is on or after since_date."""
+        if not self.since_date:
+            return True
+        if not published_at:
+            # If no publish date, include by default (can't filter)
+            return True
+        # Handle timezone-aware vs naive comparison
+        since = self.since_date
+        pub = published_at
+        if pub.tzinfo is not None and since.tzinfo is None:
+            pub = pub.replace(tzinfo=None)
+        elif pub.tzinfo is None and since.tzinfo is not None:
+            since = since.replace(tzinfo=None)
+        return pub >= since
+
     def ingest(self) -> IngestResult:
         """Ingest YouTube video transcripts."""
         result = IngestResult(source_id=self.source_id)
@@ -259,6 +277,11 @@ class YouTubeIngestor(BaseIngestor):
             result.errors.append(f"Failed to fetch YouTube: {e}")
             return result
 
+        # Filter by since_date if provided
+        if self.since_date:
+            items = [item for item in items if self._is_after_since_date(item.published_at)]
+            logger.info(f"Filtered to {len(items)} items after {self.since_date.date()}")
+
         # Store items in database
         with get_session() as session:
             for item in items:
@@ -270,7 +293,17 @@ class YouTubeIngestor(BaseIngestor):
                     )
 
                     if existing:
-                        result.items_skipped += 1
+                        if self.force:
+                            # Update existing item
+                            existing.title = item.title
+                            existing.author = item.author
+                            existing.content_text = item.content_text
+                            existing.content_html = item.content_html
+                            existing.url = item.url
+                            existing.published_at = item.published_at
+                            result.items_updated += 1
+                        else:
+                            result.items_skipped += 1
                         continue
 
                     content_item = ContentItem(
@@ -292,7 +325,7 @@ class YouTubeIngestor(BaseIngestor):
                     result.errors.append(f"Failed to store {item.title}: {e}")
 
         logger.info(
-            f"YouTube ingestion complete: {result.items_new} new, "
+            f"YouTube ingestion complete: {result.items_new} new, {result.items_updated} updated, "
             f"{result.items_skipped} skipped, {result.items_failed} failed"
         )
         return result

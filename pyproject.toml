@@ -25,6 +25,7 @@ dependencies = [
     "html2text>=2024.2",
     "tenacity>=8.2",
     "httpx>=0.25",
+    "certifi>=2023.0",
 ]
 
 [project.optional-dependencies]
