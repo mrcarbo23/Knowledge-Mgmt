@@ -1,0 +1,47 @@
+[project]
+name = "weekly-intel"
+version = "0.1.0"
+description = "Knowledge management application that produces weekly intelligence digests"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1",
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "sqlalchemy>=2.0",
+    "feedparser>=6.0",
+    "google-auth-oauthlib>=1.0",
+    "google-api-python-client>=2.100",
+    "youtube-transcript-api>=0.6",
+    "anthropic>=0.30",
+    "sentence-transformers>=2.2",
+    "datasketch>=1.6",
+    "hdbscan>=0.8",
+    "numpy>=1.24",
+    "resend>=2.0",
+    "apscheduler>=3.10",
+    "beautifulsoup4>=4.12",
+    "html2text>=2024.2",
+    "tenacity>=8.2",
+    "httpx>=0.25",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+]
+whisper = [
+    "openai-whisper>=20231117",
+]
+
+[project.scripts]
+weekly-intel = "weekly_intel.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/weekly_intel"]

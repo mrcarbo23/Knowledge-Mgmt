@@ -1,0 +1,74 @@
+# Weekly Intel Configuration
+# Copy this file to config.yaml and fill in your values
+
+# Database configuration
+database:
+  # SQLite database path (relative to project root)
+  path: "data/weekly_intel.db"
+
+# API Keys
+api_keys:
+  # Anthropic API key for Claude (required for processing)
+  anthropic: "sk-ant-..."
+
+  # Resend API key for email delivery (optional)
+  resend: "re_..."
+
+# Email delivery configuration
+email:
+  # Enable/disable email delivery
+  enabled: false
+
+  # Sender email address (must be verified in Resend)
+  from_address: "Weekly Intel <digest@yourdomain.com>"
+
+  # Default recipient(s)
+  recipients:
+    - "you@example.com"
+
+  # Unsubscribe URL (for email compliance)
+  unsubscribe_url: "https://yourdomain.com/unsubscribe"
+
+# Gmail OAuth configuration (for newsletter ingestion)
+gmail:
+  # Path to OAuth credentials JSON from Google Cloud Console
+  credentials_path: "data/gmail_credentials.json"
+
+  # Path to store OAuth token (auto-generated after auth)
+  token_path: "data/gmail_token.json"
+
+  # Gmail label to pull newsletters from (optional)
+  # If not set, will use sender filters
+  label: "Newsletters"
+
+  # Maximum emails to fetch per ingestion run
+  max_results: 50
+
+# Processing configuration
+processing:
+  # Claude model for extraction and synthesis
+  model: "claude-sonnet-4-20250514"
+
+  # Embedding model (sentence-transformers)
+  embedding_model: "all-MiniLM-L6-v2"
+
+  # Deduplication thresholds
+  fingerprint_threshold: 0.8  # MinHash Jaccard similarity
+  semantic_threshold: 0.85    # Embedding cosine similarity
+  novelty_weeks: 4            # Weeks to check for historical novelty
+
+# Scheduler configuration (for daemon mode)
+scheduler:
+  # Ingestion schedule (cron format)
+  ingest_cron: "0 6 * * *"  # Daily at 6 AM
+
+  # Digest generation schedule
+  digest_cron: "0 8 * * 0"  # Sundays at 8 AM
+
+  # Send email after digest generation
+  auto_send: false
+
+# Output configuration
+output:
+  # Directory for generated digests
+  digest_dir: "output/digests"
