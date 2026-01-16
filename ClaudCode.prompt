@@ -1,0 +1,206 @@
+Build a knowledge management application called "Weekly Intel" that ingests content from multiple sources and produces a weekly intelligence digest. Here are the complete requirements:
+
+## Core Functionality
+
+### 1. Content Ingestion
+- **Substack articles**: Accept RSS feeds or direct URLs for subscribed Substacks
+- **Email newsletters**: Connect to Gmail via API to pull newsletters from specified senders (or a labeled folder like "Newsletters")
+- **YouTube videos**: Accept channel URLs or playlist URLs, pull transcripts via YouTube's transcript API or whisper for audio extraction
+
+### 2. Data Storage
+Use SQLite (or Postgres if preferred) to store:
+- Raw content with source metadata (title, author, source type, publish date, URL)
+- Content fingerprints for deduplication
+- Processed summaries and embeddings
+- Extracted entities and themes
+- Story clusters linking related items
+- Weekly digest history
+- Email delivery logs
+
+### 3. Processing Pipeline
+For each piece of content, extract:
+- **Key new information**: Facts, announcements, data points that are genuinely novel
+- **Main themes**: Recurring topics across the content corpus
+- **Hot takes / contrarian views**: Opinions that challenge consensus or offer unique perspectives
+- **Named entities**: Companies, people, technologies mentioned
+
+### 4. Deduplication Logic
+
+Content overlap is expected—multiple sources will cover the same news, announcements, or themes. Implement a multi-layer deduplication strategy:
+
+**Layer 1: Exact/Near-Duplicate Detection (Pre-LLM)**
+- Compute content fingerprints using MinHash or SimHash on the extracted text
+- Flag items with >80% similarity score as potential duplicates
+- Store fingerprints in the database for efficient comparison against historical content
+
+**Layer 2: Semantic Clustering (LLM-Assisted)**
+- After initial summarization, embed each item's summary using a lightweight embedding model (e.g., text-embedding-3-small or local alternative like sentence-transformers)
+- Cluster embeddings using HDBSCAN or simple cosine similarity threshold (>0.85)
+- Group semantically similar items into "story clusters"
+
+**Layer 3: Synthesis During Digest Generation**
+When generating the weekly digest, for each story cluster:
+- Identify the "canonical" source (earliest publish date or most authoritative source)
+- Synthesize a single summary that incorporates unique details from all sources
+- Note which sources covered the story and any divergent perspectives
+- Format as: "According to [Source A], [key point]. [Source B] adds that [additional detail]. [Source C] takes a different view, arguing [contrarian point]."
+
+**Layer 4: Historical Novelty Check**
+- Before including an item in the digest, check against summaries from the past 4 weeks
+- Flag items that are "follow-ups" to previous stories vs. genuinely new
+- In the digest, mark recurring themes with a 🔄 indicator and link to previous coverage
+
+### 5. Weekly Digest Generation
+Generate a digest that includes:
+- Executive summary (3-5 bullet points of the most important items)
+- Thematic sections grouping related insights across sources
+- "Signal vs Noise" section highlighting what's actually new vs. recycled takes
+- Hot takes and contrarian views worth noting
+- Source attribution for each insight
+- Confidence indicator on how "new" or "significant" each item is
+
+---
+
+## Output Formats
+
+Generate two output formats for each weekly digest:
+
+### Markdown (for archival and Obsidian/Notion integration)
+
+Save to: `output/digests/YYYY-WW-digest.md`
+```markdown
+# Weekly Intel Digest
+**Week of [Date Range]** | [X] sources processed | [Y] items analyzed
+
+## 🎯 Executive Summary
+- Key point 1
+- Key point 2
+- Key point 3
+
+## 📊 Key Themes This Week
+
+### Theme 1: [Theme Name]
+[Synthesized summary with source attribution]
+
+**Sources:** [Source A], [Source B]
+**Novelty:** 🆕 New | 🔄 Ongoing story
+
+### Theme 2: [Theme Name]
+...
+
+## 🔥 Hot Takes & Contrarian Views
+| Take | Source | My Assessment |
+|------|--------|---------------|
+| [Opinion] | [Author/Source] | [Brief context on why notable] |
+
+## 📈 Signals to Watch
+- [Emerging trend or data point worth monitoring]
+
+## 📚 Source Index
+| Source | Items | Type |
+|--------|-------|------|
+| Stratechery | 2 | Substack |
+| Lenny's Newsletter | 1 | Substack |
+...
+
+---
+*Generated [timestamp] by Weekly Intel*
+```
+
+### HTML Email (for delivery via SendGrid, SES, or Resend)
+
+Save to: `output/digests/YYYY-WW-digest.html`
+
+Requirements:
+- Responsive design (mobile-friendly, single column, max-width 600px)
+- Inline CSS only (email client compatibility)
+- Clean typography: system font stack, 16px base, adequate line-height
+- Visual hierarchy using background colors for sections (not relying on images)
+- Anchor links in executive summary to jump to theme sections
+- Dark mode compatible (use both light and dark color schemes via prefers-color-scheme media query)
+- Include plain-text alternative for multipart MIME
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Weekly Intel - Week of [Date]</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .section { background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    .tag-new { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .tag-ongoing { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .hot-take { border-left: 4px solid #dc3545; padding-left: 12px; margin: 12px 0; }
+    .sources { font-size: 14px; color: #666; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a1a; color: #e0e0e0; }
+      .section { background: #2d2d2d; }
+      .sources { color: #aaa; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📬 Weekly Intel</h1>
+      <p class="subtitle">Week of [Date Range] • [X] sources • [Y] items</p>
+    </header>
+    
+    <section class="executive-summary">
+      <h2>🎯 This Week in 30 Seconds</h2>
+      <ul>
+        <li><a href="#theme-1">[Key point 1]</a></li>
+        <li><a href="#theme-2">[Key point 2]</a></li>
+      </ul>
+    </section>
+    
+    <section id="theme-1" class="section">
+      <span class="tag-new">New</span>
+      <h3>[Theme Name]</h3>
+      <p>[Synthesized content]</p>
+      <p class="sources">📎 Sources: [linked sources]</p>
+    </section>
+    
+    <section class="hot-takes">
+      <h2>🔥 Hot Takes</h2>
+      <div class="hot-take">
+        <p><strong>[Author]:</strong> [Opinion]</p>
+      </div>
+    </section>
+    
+    <footer>
+      <p style="font-size: 14px; color: #888;">Generated by Weekly Intel • <a href="#">View archive</a> • <a href="#">Unsubscribe</a></p>
+    </footer>
+  </div>
+</body>
+</html>
+```
+
+---
+
+## Email Delivery Module
+
+Create `src/delivery/email.py` with:
+- Support for multiple providers (SendGrid, AWS SES, Resend) via config
+- Send multipart email (HTML + plain text fallback generated from markdown)
+- Include List-Unsubscribe header for compliance
+- Retry logic with exponential backoff (3 attempts)
+- Log delivery status to database
+
+---
+
+## Technical Stack
+
+- **Language**: Python 3.11+
+- **LLM**: Claude API (claude-sonnet-4-20250514) for summarization and extraction
+- **Embeddings**: OpenAI text-embedding-3-small or sentence-transformers (local)
+- **Database**: SQLite for MVP, with clean abstraction to swap for Postgres later
+- **Email**: Resend (preferred) or SendGrid
+- **Scheduling**: APScheduler or system cron
+
+---
+
+## Directory Structure
