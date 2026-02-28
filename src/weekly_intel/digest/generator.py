@@ -71,19 +71,6 @@ class DigestContent:
     generated_at: datetime = field(default_factory=datetime.utcnow)
 
 
-SYNTHESIS_SYSTEM_PROMPT = """You are creating a weekly intelligence digest that synthesizes information from multiple sources.
-
-Your task is to create an executive summary and identify key signals from the provided content summaries.
-
-Guidelines:
-- Be concise and actionable
-- Highlight what's genuinely new vs. ongoing stories
-- Identify patterns across sources
-- Note contrarian or unique perspectives
-- Focus on "so what" - why does this matter?
-
-Maintain a professional, analytical tone."""
-
 SYNTHESIS_TOOLS = [
     {
         "name": "create_digest",
@@ -140,6 +127,7 @@ class DigestGenerator:
 
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = self.config.processing.model
+        self.prompts = self.config.prompts.synthesis
 
     def generate(self, week_number: Optional[str] = None) -> DigestContent:
         """Generate a weekly digest.
@@ -310,22 +298,15 @@ class DigestGenerator:
             source_name = source.name if source else "Unknown"
             summaries.append(f"[{source_name}]: {item.summary}")
 
-        prompt = f"""Synthesize these summaries about the same topic into a unified summary.
-
-{chr(10).join(summaries)}
-
-Create a synthesized summary that:
-1. Identifies the core story/theme
-2. Incorporates unique details from each source
-3. Notes any divergent perspectives
-4. Uses format: "According to [Source], [point]. [Other Source] adds that [detail]."
-"""
+        prompt = self.prompts.cluster_user_prompt_template.format(
+            summaries=chr(10).join(summaries)
+        )
 
         try:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
-                system="You are synthesizing multiple source perspectives on the same topic.",
+                system=self.prompts.cluster_system_prompt,
                 tools=CLUSTER_SYNTHESIS_TOOLS,
                 tool_choice={"type": "tool", "name": "synthesize_cluster"},
                 messages=[{"role": "user", "content": prompt}],
@@ -387,24 +368,16 @@ Create a synthesized summary that:
         for take in hot_takes[:5]:
             hot_take_summaries.append(f"- {take.author}: {take.take}")
 
-        prompt = f"""Based on these themes and hot takes from this week's content, create an executive summary.
-
-THEMES:
-{chr(10).join(theme_summaries)}
-
-HOT TAKES:
-{chr(10).join(hot_take_summaries) if hot_take_summaries else "None notable"}
-
-Create:
-1. Executive summary: 3-5 bullet points of the most important/actionable items
-2. Signals to watch: Emerging trends worth monitoring
-"""
+        prompt = self.prompts.executive_summary_prompt_template.format(
+            themes=chr(10).join(theme_summaries),
+            hot_takes=chr(10).join(hot_take_summaries) if hot_take_summaries else "None notable",
+        )
 
         try:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
-                system=SYNTHESIS_SYSTEM_PROMPT,
+                system=self.prompts.system_prompt,
                 tools=SYNTHESIS_TOOLS,
                 tool_choice={"type": "tool", "name": "create_digest"},
                 messages=[{"role": "user", "content": prompt}],

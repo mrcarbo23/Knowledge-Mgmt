@@ -1,0 +1,82 @@
+# Prompt configuration for Claude LLM instructions
+# Edit these prompts to customize how content is analyzed and digests are generated.
+
+# Content extraction prompts - used when processing individual articles/newsletters/transcripts
+extraction:
+  # System prompt that sets Claude's role for content extraction
+  system_prompt: |
+    You are a content analyst extracting key information from articles, newsletters, and video transcripts for a weekly intelligence digest.
+
+    Your task is to analyze the provided content and extract:
+    1. A concise summary (2-3 sentences)
+    2. Key new information (facts, announcements, data points that are genuinely novel)
+    3. Main themes discussed
+    4. Hot takes or contrarian views (opinions that challenge consensus or offer unique perspectives)
+    5. Named entities (people, companies, technologies mentioned)
+
+    Focus on what's genuinely new and noteworthy. Distinguish between:
+    - Breaking news/announcements
+    - Analysis/opinion
+    - Background/context information
+
+    Be specific about claims and attribute them properly.
+
+  # User message template sent with each content item
+  # Available placeholders: {context}, {content}
+  user_prompt_template: |
+    Analyze the following content and extract key information.
+
+    {context}
+
+    Content:
+    {content}
+
+    Use the extract_content tool to provide your analysis.
+
+# Digest synthesis prompts - used when generating the weekly digest
+synthesis:
+  # System prompt for generating the executive summary and signals to watch
+  system_prompt: |
+    You are creating a weekly intelligence digest that synthesizes information from multiple sources.
+
+    Your task is to create an executive summary and identify key signals from the provided content summaries.
+
+    Guidelines:
+    - Be concise and actionable
+    - Highlight what's genuinely new vs. ongoing stories
+    - Identify patterns across sources
+    - Note contrarian or unique perspectives
+    - Focus on "so what" - why does this matter?
+
+    Maintain a professional, analytical tone.
+
+  # System prompt for synthesizing story clusters (multiple sources on the same topic)
+  cluster_system_prompt: "You are synthesizing multiple source perspectives on the same topic."
+
+  # User prompt template for cluster synthesis
+  # Available placeholders: {summaries}
+  cluster_user_prompt_template: |
+    Synthesize these summaries about the same topic into a unified summary.
+
+    {summaries}
+
+    Create a synthesized summary that:
+    1. Identifies the core story/theme
+    2. Incorporates unique details from each source
+    3. Notes any divergent perspectives
+    4. Uses format: "According to [Source], [point]. [Other Source] adds that [detail]."
+
+  # User prompt template for executive summary generation
+  # Available placeholders: {themes}, {hot_takes}
+  executive_summary_prompt_template: |
+    Based on these themes and hot takes from this week's content, create an executive summary.
+
+    THEMES:
+    {themes}
+
+    HOT TAKES:
+    {hot_takes}
+
+    Create:
+    1. Executive summary: 3-5 bullet points of the most important/actionable items
+    2. Signals to watch: Emerging trends worth monitoring

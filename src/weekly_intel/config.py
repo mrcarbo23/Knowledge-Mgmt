@@ -63,6 +63,41 @@ class OutputConfig(BaseModel):
     digest_dir: str = "output/digests"
 
 
+class ExtractionPromptsConfig(BaseModel):
+    """Prompts for content extraction."""
+
+    system_prompt: str = ""
+    user_prompt_template: str = ""
+
+
+class SynthesisPromptsConfig(BaseModel):
+    """Prompts for digest synthesis."""
+
+    system_prompt: str = ""
+    cluster_system_prompt: str = ""
+    cluster_user_prompt_template: str = ""
+    executive_summary_prompt_template: str = ""
+
+
+class PromptsConfig(BaseModel):
+    """All LLM prompt configuration."""
+
+    extraction: ExtractionPromptsConfig = Field(default_factory=ExtractionPromptsConfig)
+    synthesis: SynthesisPromptsConfig = Field(default_factory=SynthesisPromptsConfig)
+
+    @classmethod
+    def from_yaml(cls, path: Path | str) -> "PromptsConfig":
+        """Load prompts from a YAML file."""
+        path = Path(path)
+        if not path.exists():
+            return cls()
+
+        with open(path) as f:
+            data = yaml.safe_load(f) or {}
+
+        return cls(**data)
+
+
 class Config(BaseSettings):
     """Main application configuration."""
 
@@ -78,6 +113,7 @@ class Config(BaseSettings):
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
+    prompts: PromptsConfig = Field(default_factory=PromptsConfig)
 
     @classmethod
     def from_yaml(cls, path: Path | str) -> "Config":
@@ -124,6 +160,15 @@ def load_config(path: Optional[Path | str] = None) -> Config:
         _config = Config.from_yaml(path)
     else:
         _config = Config()
+
+    # Load prompts from prompts.yaml alongside the config file
+    if path:
+        prompts_path = Path(path).parent / "prompts.yaml"
+    else:
+        prompts_path = Path.cwd() / "prompts.yaml"
+
+    if prompts_path.exists():
+        _config.prompts = PromptsConfig.from_yaml(prompts_path)
 
     return _config
 

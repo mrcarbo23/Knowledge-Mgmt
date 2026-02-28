@@ -10,8 +10,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -35,6 +35,7 @@ env/
 
 # Weekly Intel specific
 config.yaml
+prompts.yaml
 data/
 output/
 !output/.gitkeep
@@ -43,6 +44,8 @@ output/
 # Credentials and tokens
 *.json
 !config.example.yaml
+!weekly-intel-web/**/*.json
+!weekly-intel-web/*.json
 gmail_token.json
 gmail_credentials.json
 

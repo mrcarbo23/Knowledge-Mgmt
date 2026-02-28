@@ -1,6 +1,5 @@
 """LLM-based content extraction using Claude API."""
 
-import json
 import logging
 import os
 from dataclasses import dataclass, field
@@ -23,23 +22,6 @@ class ExtractionResult:
     hot_takes: list[dict] = field(default_factory=list)  # {take: str, context: str}
     entities: dict = field(default_factory=dict)  # {people: [], companies: [], technologies: []}
     raw_response: Optional[dict] = None
-
-
-EXTRACTION_SYSTEM_PROMPT = """You are a content analyst extracting key information from articles, newsletters, and video transcripts for a weekly intelligence digest.
-
-Your task is to analyze the provided content and extract:
-1. A concise summary (2-3 sentences)
-2. Key new information (facts, announcements, data points that are genuinely novel)
-3. Main themes discussed
-4. Hot takes or contrarian views (opinions that challenge consensus or offer unique perspectives)
-5. Named entities (people, companies, technologies mentioned)
-
-Focus on what's genuinely new and noteworthy. Distinguish between:
-- Breaking news/announcements
-- Analysis/opinion
-- Background/context information
-
-Be specific about claims and attribute them properly."""
 
 
 EXTRACTION_TOOLS = [
@@ -118,6 +100,7 @@ class ContentExtractor:
 
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = config.processing.model
+        self.prompts = config.prompts.extraction
 
     def extract(
         self,
@@ -153,20 +136,15 @@ class ContentExtractor:
         if len(content) > max_content_length:
             content = content[:max_content_length] + "\n[Content truncated...]"
 
-        user_message = f"""Analyze the following content and extract key information.
-
-{context}
-
-Content:
-{content}
-
-Use the extract_content tool to provide your analysis."""
+        user_message = self.prompts.user_prompt_template.format(
+            context=context, content=content
+        )
 
         try:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=4096,
-                system=EXTRACTION_SYSTEM_PROMPT,
+                system=self.prompts.system_prompt,
                 tools=EXTRACTION_TOOLS,
                 tool_choice={"type": "tool", "name": "extract_content"},
                 messages=[{"role": "user", "content": user_message}],
