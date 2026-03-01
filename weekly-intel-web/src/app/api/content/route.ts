@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { contentItems, processedItems, sources } from "@/lib/db/schema";
-import { eq, isNull, isNotNull, desc, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const limit = parseInt(searchParams.get("limit") ?? "100", 10);
 
-  let query = db
+  const rows = await db
     .select({
       id: contentItems.id,
       title: contentItems.title,
@@ -25,8 +25,6 @@ export async function GET(request: NextRequest) {
     .leftJoin(processedItems, eq(contentItems.id, processedItems.contentItemId))
     .orderBy(desc(contentItems.ingestedAt))
     .limit(limit);
-
-  const rows = await query;
 
   const result = rows.map((row) => ({
     id: row.id,

@@ -12,38 +12,46 @@ import { sql, desc } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [sourceCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(sources);
+  try {
+    const [sourceCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(sources);
 
-  const [contentCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(contentItems);
+    const [contentCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(contentItems);
 
-  const [processedCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(processedItems);
+    const [processedCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(processedItems);
 
-  const [digestCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(weeklyDigests);
+    const [digestCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(weeklyDigests);
 
-  const recentJobs = await db
-    .select({
-      id: jobRuns.id,
-      jobType: jobRuns.jobType,
-      status: jobRuns.status,
-      startedAt: jobRuns.startedAt,
-    })
-    .from(jobRuns)
-    .orderBy(desc(jobRuns.startedAt))
-    .limit(10);
+    const recentJobs = await db
+      .select({
+        id: jobRuns.id,
+        jobType: jobRuns.jobType,
+        status: jobRuns.status,
+        startedAt: jobRuns.startedAt,
+      })
+      .from(jobRuns)
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(10);
 
-  return NextResponse.json({
-    sources: Number(sourceCount.count),
-    contentItems: Number(contentCount.count),
-    processedItems: Number(processedCount.count),
-    digests: Number(digestCount.count),
-    recentJobs,
-  });
+    return NextResponse.json({
+      sources: Number(sourceCount.count),
+      contentItems: Number(contentCount.count),
+      processedItems: Number(processedCount.count),
+      digests: Number(digestCount.count),
+      recentJobs,
+    });
+  } catch (e) {
+    console.error("Stats API error:", e);
+    return NextResponse.json(
+      { error: String(e) },
+      { status: 500 }
+    );
+  }
 }
