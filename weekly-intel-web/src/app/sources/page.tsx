@@ -101,9 +101,9 @@ export default function SourcesPage() {
     switch (newSource.sourceType) {
       case "substack":
         return {
-          label: "Feed URL",
+          label: "Substack URL",
           key: "url",
-          placeholder: "https://example.substack.com/feed",
+          placeholder: "https://example.substack.com or custom domain",
         };
       case "gmail":
         return {

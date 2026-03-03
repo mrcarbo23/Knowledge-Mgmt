@@ -14,6 +14,35 @@ interface IngestResult {
   errors: string[];
 }
 
+function normalizeSubstackUrl(url: string): string {
+  // Remove trailing slash
+  let normalized = url.replace(/\/+$/, "");
+  
+  // If it's already a feed URL, return as-is
+  if (normalized.endsWith("/feed")) {
+    return normalized;
+  }
+  
+  // Handle various Substack URL formats
+  try {
+    const parsed = new URL(normalized);
+    
+    // If it's a substack.com/@username or substack.com/@username/p-xxx URL
+    // Convert to the proper subdomain feed
+    if (parsed.hostname === "substack.com" && parsed.pathname.startsWith("/@")) {
+      const username = parsed.pathname.split("/")[1].replace("@", "");
+      return `https://${username}.substack.com/feed`;
+    }
+    
+    // If it's already a subdomain (e.g., example.substack.com or custom domain)
+    // Just append /feed
+    return `${parsed.origin}/feed`;
+  } catch {
+    // If URL parsing fails, just append /feed
+    return `${normalized}/feed`;
+  }
+}
+
 export async function ingestSubstack(
   sourceId: number,
   sourceConfig: { url: string },
@@ -34,12 +63,13 @@ export async function ingestSubstack(
   }
 
   const parser = new Parser();
+  const feedUrl = normalizeSubstackUrl(sourceConfig.url);
 
   let feed;
   try {
-    feed = await parser.parseURL(sourceConfig.url);
+    feed = await parser.parseURL(feedUrl);
   } catch (e) {
-    result.errors.push(`Failed to fetch feed: ${e}`);
+    result.errors.push(`Failed to fetch feed from ${feedUrl}: ${e}`);
     return result;
   }
 
