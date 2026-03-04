@@ -1,68 +1,10 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-/lib/
-/lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# v0 runtime files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
 
-# Virtual environments
-venv/
-ENV/
-env/
-.venv/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Weekly Intel specific
-config.yaml
-prompts.yaml
-data/
-output/
-!output/.gitkeep
-!data/.gitkeep
-
-# Credentials and tokens
-*.json
-!config.example.yaml
-!weekly-intel-web/**/*.json
-!weekly-intel-web/*.json
-gmail_token.json
-gmail_credentials.json
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
-*.log
-logs/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# OS
+# Common ignores
+node_modules/
+.next/
+.env*.local
 .DS_Store
-Thumbs.db
